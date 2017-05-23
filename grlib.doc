@@ -1,0 +1,122 @@
+GRLIB -- Hires C64 graphics library
+Last updated: 3/14/01 sjudd@ffd2.com
+
+grlib is a simple 2D graphics library for you to use in your programs.  It's
+really just the old BLARG routines, fixed up a little and with a jump table
+added.  It's really easy to use, and there's a little test program included
+to show you how all the routines work.  The file "jumptab.s" contains the
+grlib jump table and all the constants it uses, so include it in any assembly
+program and off you go.
+
+To use it, just load to $C000.  That's it.
+
+Here is a brief description of the routines and how to call them.  For more
+information check out the BLARG docs (and the article in disC=overy issue 2).
+
+$C000	InitGr		Initialize the graphics routines: set origin to
+			upper-left corner, bitmap at $E000, color map
+			to $FC00, and MODE 17 graphics (all explained later!)
+	Arguments:	none
+
+$C003	SetOrg		Set the screen origin (0,0).  Normally this origin
+			is the upper-left corner of the screen.
+	Arguments:	.X/.Y contain the new X/Y origin coordinates
+
+$C006	GRON		Turn GRaphics ON
+	Arguments:	If .A = 0 then turn bitmap on
+			Otherwise, initialize colormap to .A, clear bitmap,
+			and turn bitmap on.
+
+$C009	GROFF		Turn graphics off -- restores graphics state to
+			whatever it was when GRON was called.
+	Arguments:	None
+
+$C00C	SETCOLOR	Set drawing color to foreground or background
+	Arguments:	.A = 0 -> Background color
+			.A = 1 -> Foreground color
+
+$C00F	MODE		Change drawing mode or set bit mask.  Three modes
+			are available:
+	Arguments	.A = 16 -> Mode 16, optimized for the SCPU (bitmap
+			  	   in VIC bank 2 and optimized mode set)
+			.A = 17 -> Mode 17, normal mode (VIC bank 3, text
+				   at $0400)
+			.A = 18 -> Mode 18, double-buffer mode (VIC banks
+				   1 and 2, swap buffers with SWAPBUF)
+			Otherwise, set BITMASK to .A -- BITMASK is logical
+			AND-ed with the bitmap pattern when drawing lines.
+
+$C012	SETBUF		Set the current drawing buffer, in double buffer mode
+	Arguments:	.X = 0 -> Swap buffers
+			.X = 1 -> Buffer 1 ($E000)
+			.X = 2 -> Buffer 2 ($A000)
+
+$C015	SWAPBUF		Swap the *DISPLAYED* buffer.  The idea is to draw
+			into the back buffer, then swap it forward when it's
+			ready to be displayed.
+	Arguments:	none
+
+PLOT, LINE, and CIRCLE all use *signed* *16-bit* coordinates, stored in
+zero page before calling the routine.  Don't forget and assume that the upper
+eight bits will be zero!
+
+$C018	PLOT		Plot the point in X1, Y1 (zero page locations), offset
+			by ORGX/ORGY.
+			PLOT is much slower than it needs to be (should just
+			use a lookup table).
+			
+	Arguments:	X1 = $02/$03: 16-bit X-coordinate
+			Y1 = $04/$05: 16-bit Y-coordinate
+
+$C01B	PLOTABS		Like PLOT, but ignores ORGX/ORGY
+	Arguments:	Same as PLOT
+
+$C01E	LINE		Draw a line from (X1,Y1) to (X2,Y2).  Endpoints can
+			be off the visible screen.  Line pattern is determined
+			by BITMASK, set using MODE command (see above).
+	Arguments:	(X1,Y1) = ($02,$04)
+			(X2,Y2) = ($06,$08) 16-bit line endpoints
+
+$C021	CIRCLE		Draw a circle of radius RADIUS, centered at X1,Y1.
+			The circle routine is very fast, and doesn't mind
+			points off the visible screen.
+	Arguments:	(X1,Y1) = ($02,$04): 16-bit center coordinates
+			RADIUS = $10: Radius of circle (8-bits)
+
+GRLIB Jump table and memory usage:
+
+*      
+* grlib jump table
+*
+
+InitGr   = $C000
+SetOrg   = Init+3
+GRON     = SetOrg+3
+GROFF    = GRON+3
+SETCOLOR = GROFF+3
+MODE     = SETCOLOR+3
+SETBUF   = MODE+3
+SWAPBUF  = SETBUF+3
+PLOT     = SWAPBUF+3
+PLOTABS  = PLOT+3
+LINE     = PLOTABS+3
+CIRCLE   = LINE+3
+
+*
+* grlib constants
+*
+
+X1       = $02
+Y1       = $04
+X2       = $06
+Y2       = $08
+DX       = $0A
+DY       = $0C
+ROW      = $0D            ;Bitmap row
+COL      = $0E            ;and column
+INRANGE  = $0F            ;Range check flag
+
+RADIUS   = $10
+
+POINT    = $FD            ;Bitmap pointer
+
